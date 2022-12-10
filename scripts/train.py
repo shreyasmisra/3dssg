@@ -48,15 +48,15 @@ def read_class(path):
 def get_model(args):
     # initiate model
     use_pretrained_cls = not args.use_pretrained
-    model = SGPN(use_pretrained_cls, feature_extractor=CONF.EXTRACTOR, graph_gen=CONF.GNN,
+    model = SGPN(use_pretrained_cls, feature_extractor='pointnet', graph_gen='gcn',
                  gnn_dim=128, gnn_hidden_dim=512, gnn_pooling='avg', gnn_num_layers=5, mlp_normalization='batch')
 
     # trainable model
-    if args.use_pretrained:
-        # load model
-        print("loading pretrained model...")
-        pretrained_path = os.path.join(CONF.PATH.OUTPUT, args.use_pretrained, "model_last.pth")
-        model.load_state_dict(torch.load(pretrained_path), strict=False)
+    # if args.use_pretrained:
+    #     # load model
+    #     print("loading pretrained model...")
+    #     pretrained_path = os.path.join(CONF.PATH.OUTPUT, args.use_pretrained, "model_last.pth")
+    #     model.load_state_dict(torch.load(pretrained_path), strict=False)
 
     # to CUDA
     # model = torch.nn.DataParallel(model)
