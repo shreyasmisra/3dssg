@@ -124,8 +124,9 @@ def save_info(args, root, num_params, train_dataset, val_dataset):
 
 def get_3dssg(d3ssg_train, d3ssg_val, num_scans):
     # get initial scan list
-    train_scan_list = sorted(list([data["scan"]+"-"+str(hex(data["split"]))[-1] for data in d3ssg_train]))
-    val_scan_list = sorted(list([data["scan"]+"-"+str(hex(data["split"]))[-1] for data in d3ssg_val]))
+    train_scan_list = sorted(list([data["scan"] for data in d3ssg_train]))
+    val_scan_list = sorted(list([data["scan"] for data in d3ssg_val]))
+    # import pdb; pdb.set_trace()
     if num_scans == -1:
         num_scans = len(train_scan_list)
     else:
@@ -136,20 +137,8 @@ def get_3dssg(d3ssg_train, d3ssg_val, num_scans):
     ratio = num_scans / len(d3ssg_train)
     val_scan_list = val_scan_list[:int(len(d3ssg_val) * ratio)]
 
-    # filter data in chosen scenes
-    new_3dssg_train = []
-    for data in d3ssg_train:
-        for l in train_scan_list:
-            if data["scan"]==l[:-2] and data["split"]==int(l[-1],16):
-                new_3dssg_train.append(data)
-    new_3dssg_val = []
-    for data in d3ssg_val:
-        for l in val_scan_list:
-            if data["scan"] == l[:-2] and data["split"] == int(l[-1], 16):
-                new_3dssg_val.append(data)
-
-    # new_3dssg_val = d3ssg_val
-
+    new_3dssg_val = d3ssg_val
+    new_3dssg_train = d3ssg_train
     print("train on {} samples and val on {} samples".format(len(new_3dssg_train), len(new_3dssg_val)))
 
     return new_3dssg_train, new_3dssg_val, train_scan_list, val_scan_list
