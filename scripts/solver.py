@@ -71,25 +71,25 @@ class Solver():
         self.bn_decay_rate = bn_decay_rate
 
         # load classes.txt into a dict
-        file = open(os.path.join(CONF.PATH.DATA, "3DSSG/classes.txt"), 'r')
-        description = file.readline()[:-1]
-        elements = description.split('\t')
-        word_dict = {}
-        while True:
-            category = elements[1]
-            elements = elements[3:]
-            word_dict[category] = elements
-            description = file.readline()[:-1]
-            elements = description.split('\t')
-            if not description:
-                break
+        # file = open(os.path.join(CONF.PATH.DATA, "3DSSG/classes.txt"), 'r')
+        # description = file.readline()[:-1]
+        # elements = description.split('\t')
+        # word_dict = {}
+        # while True:
+        #     category = elements[1]
+        #     elements = elements[3:]
+        #     word_dict[category] = elements
+        #     description = file.readline()[:-1]
+        #     elements = description.split('\t')
+        #     if not description:
+        #         break
 
-        if CONF.SINGLE_OR_MULTI:
-            self.obj_criterion = CrossEntropyFocalLoss()
-            self.rel_criterion = CrossEntropyFocalLoss()
-        else:
-            self.obj_criterion = CrossEntropyFocalLoss(word_dict=word_dict)
-            self.rel_criterion = PerClassBCEFocalLosswithLogits(alpha=0.9)
+        # if CONF.SINGLE_OR_MULTI:
+        self.obj_criterion = CrossEntropyFocalLoss()
+        self.rel_criterion = CrossEntropyFocalLoss()
+        # else:
+        #     self.obj_criterion = CrossEntropyFocalLoss(word_dict=word_dict)
+        #     self.rel_criterion = PerClassBCEFocalLosswithLogits(alpha=0.9)
 
         self.best = {
             "epoch": 0,
