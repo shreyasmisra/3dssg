@@ -22,3 +22,6 @@ CONF.PATH.R3Scan = os.path.join(CONF.PATH.DATA, "scans")
 
 # output
 CONF.PATH.OUTPUT = os.path.join(CONF.PATH.BASE, "outputs")
+
+#Pretrained
+CONF.PATH.PRETRAINED = "/home/shreyasm/3dssg/pointnet_cls_best_model.pth"

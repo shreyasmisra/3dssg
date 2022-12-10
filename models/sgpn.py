@@ -22,7 +22,7 @@ def get_num_params(model):
 
 def load_pretained_cls_model(model):
     # load pretrained pointnet_cls model [ relPointNet ver. ]
-    pretrained_dict = torch.load(os.path.join(CONF.PATH.BASE, './pointnet_cls_best_model.pth'))["model_state_dict"]
+    pretrained_dict = torch.load(CONF.PATH.PRETRAINED)["model_state_dict"]
     net_state_dict = model.state_dict()
     pretrained_dict_ = {k[5:]: v for k, v in pretrained_dict.items() if 'feat' in k and v.size() == net_state_dict[k[5:]].size()}
     net_state_dict.update(pretrained_dict_)
@@ -42,8 +42,10 @@ class SGPN(nn.Module):
             self.relExtractor = PointNetEncoder(global_feat=True, feature_transform=True,
                                                 channel=4)  # (x,y,z,M) M-> class-agnostic instance segmentation
             if use_pretrained_cls:
+                print("Loading pretrained classifier ...")
                 load_pretained_cls_model(self.objExtractor)
                 load_pretained_cls_model(self.relExtractor)
+                print("Loaded pretrained classifier.")
             # print('objPointNet params:', get_num_params(self.objPointNet))
             # print('relPointNet params:', get_num_params(self.relPointNet))
         else:
