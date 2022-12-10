@@ -15,7 +15,8 @@ from tqdm import tqdm
 
 sys.path.append(os.path.join(os.getcwd())) # HACK add the root folder
 from lib.config import CONF
-from data.dataset import D3SemanticSceneGraphDataset
+# from data.dataset import D3SemanticSceneGraphDataset
+from data.pigraph_dataset import D3SemanticSceneGraphDataset
 from models.sgpn import SGPN
 from scripts.solver import Solver
 from scripts.eval import get_eval
