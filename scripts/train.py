@@ -21,8 +21,8 @@ from models.sgpn import SGPN
 from scripts.solver import Solver
 from scripts.eval import get_eval
 
-D3SSG_TRAIN = json.load(open(os.path.join(CONF.PATH.DATA, "3DSSG_subset/relationships_train.json")))["scans"]
-D3SSG_VAL = json.load(open(os.path.join(CONF.PATH.DATA, "3DSSG_subset/relationships_validation.json")))["scans"]
+D3SSG_TRAIN = json.load(open(os.path.join(CONF.PATH.DATA, "processed/HOI_all.json")))["scans"][:-10]
+D3SSG_VAL = json.load(open(os.path.join(CONF.PATH.DATA, "processed/HOI_all.json")))["scans"][-10:]
 
 # one scan split include at most 9 classes object, used for visualization
 node_color_list = ['aliceblue', 'antiquewhite', 'cornsilk3', 'lightpink', 'salmon', 'palegreen', 'khaki',
