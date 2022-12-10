@@ -91,16 +91,21 @@ def get_solver(args, dataloader):
         root = os.path.join(CONF.PATH.OUTPUT, stamp)
         os.makedirs(root, exist_ok=True)
 
+    LR_DECAY_STEP = [30, 40, 50]
+    LR_DECAY_RATE = 0.1
+    BN_DECAY_STEP = 20
+    BN_DECAY_RATE = 0.5
+
     solver = Solver(
         model=model,
         dataloader=dataloader,
         optimizer=optimizer,
         stamp=stamp,
         val_step=args.val_step,
-        lr_decay_step=CONF.SCALAR.LR_DECAY_STEP,
-        lr_decay_rate=CONF.SCALAR.LR_DECAY_RATE,
-        bn_decay_step=CONF.SCALAR.BN_DECAY_STEP,
-        bn_decay_rate=CONF.SCALAR.BN_DECAY_RATE
+        lr_decay_step=LR_DECAY_STEP,
+        lr_decay_rate=LR_DECAY_RATE,
+        bn_decay_step=BN_DECAY_STEP,
+        bn_decay_rate=BN_DECAY_RATE
     )
     num_params = get_num_params(model)
     print('sgpn params:', num_params)
