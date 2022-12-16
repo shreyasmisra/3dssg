@@ -93,14 +93,16 @@ class SGPN(nn.Module):
         self.rel_classifier = build_mlp(rel_classifier_layer, batch_norm=mlp_normalization)
 
     def forward(self, data_dict):
-        objects_id = data_dict["objects_id"]
+        # objects_id = data_dict["objects_id"]
         objects_pc = data_dict["objects_pc"]
-        objects_count = data_dict["aligned_obj_num"]   # namely 9
-        predicate_pc_flag = data_dict["predicate_pc_flag"]
+
+        # TODO: check the shape of objects_cat. Num unique objects in scene. Should be a number.
+        objects_count = data_dict["objects_cat"].unique() #data_dict["aligned_obj_num"]   # namely 9
+        predicate_pc_flag = data_dict["poses"] #data_dict["predicate_pc_flag"]
         predicate_count = data_dict["aligned_rel_num"] # namely 72
         edges = data_dict["edges"]
         trans_feat = []
-        batch_size = objects_id.size(0)
+        batch_size = objects_pc.size(0) // 20
 
         # point cloud pass feature extractor
         objects_pc = objects_pc.permute(0, 2, 1)
@@ -152,3 +154,7 @@ class SGPN(nn.Module):
         data_dict["predicate_predict"] = rel_pred_list
 
         return data_dict
+
+# predicate_count = 0
+# for b in range(data_dict["triples"].shape[0]):
+#     predicate_count += data_dict["triples"][b][:, 2].unique()
