@@ -344,25 +344,29 @@ class Solver():
         self.optimizer.step()
 
     def _compute_loss(self, data_dict, lambda_obj=0.1, mat_diff_loss_scale=0.001):
-        batch_size = data_dict["objects_id"].size(0)
+        batch_size = data_dict["objects_pc"].size(0) // 60
         Focal_Lobj = []
         Focal_Lpred = []
-        # object classification
         for index in range(batch_size):
-            obj_count = int(data_dict["objects_count"][index].item())
-            rel_count = int(data_dict["predicate_count"][index].item())
-            Focal_Lobj.append(self.obj_criterion(data_dict["objects_predict"][index][:obj_count],
-                                                 data_dict["objects_cat"][index][:obj_count]))
-            if CONF.SINGLE_OR_MULTI:
-                # single classification
-                cat_class = np.argwhere(data_dict["predicate_cat"][index][:rel_count].cpu().numpy() == 1)
-                logits = data_dict["predicate_predict"][index][:rel_count][cat_class[:, 0]].cuda()
-                target = torch.from_numpy(cat_class[:, 1]).cuda()
-                Focal_Lpred.append(self.rel_criterion(logits, target))
-            else:
-                # predicate classification: per-class binary cross entropy.
-                Focal_Lpred.append(self.rel_criterion(data_dict["predicate_predict"][index][:rel_count],
-                                                      data_dict["predicate_cat"][index][:rel_count]))
+            Focal_Lobj.append(self.obj_criterion(data_dict["objects_predict"][index][:60], data_dict["objects_cat"][index].to(torch.int64)))
+            non_zero_rows = int(torch.count_nonzero((data_dict["triples"][index] != 0).sum(1)).item())
+            Focal_Lpred.append(self.rel_criterion(data_dict["predicate_predict"][index][:non_zero_rows], data_dict["triples"][index][:non_zero_rows, 2].reshape(1, -1).to(torch.int64)))
+        # object classification
+        # for index in range(batch_size):
+        #     obj_count = data_dict["objects_cat"][index].unique().shape[0]
+        #     rel_count = data_dict["triples"][index][:,-1].unique().shape[0]
+        #     Focal_Lobj.append(self.obj_criterion(data_dict["objects_predict"][index][:obj_count],
+        #                                          data_dict["objects_cat"][index][:obj_count]))
+        #     if CONF.SINGLE_OR_MULTI:
+        #         # single classification
+        #         cat_class = np.argwhere(data_dict["predicate_cat"][index][:rel_count].cpu().numpy() == 1)
+        #         logits = data_dict["predicate_predict"][index][:rel_count][cat_class[:, 0]].cuda()
+        #         target = torch.from_numpy(cat_class[:, 1]).cuda()
+        #         Focal_Lpred.append(self.rel_criterion(logits, target))
+        #     else:
+        #         # predicate classification: per-class binary cross entropy.
+        #         Focal_Lpred.append(self.rel_criterion(data_dict["predicate_predict"][index][:rel_count],
+        #                                               data_dict["predicate_cat"][index][:rel_count]))
 
         #  PointNet feature transform regularizer
         mat_diff_loss = 0
@@ -370,8 +374,8 @@ class Solver():
             tmp = feature_transform_reguliarzer(it)
             mat_diff_loss = mat_diff_loss + tmp * mat_diff_loss_scale
         # total loss
-        L_obj_sum = np.array(Focal_Lobj).sum()
-        L_pred_sum = np.array(Focal_Lpred).sum()
+        L_obj_sum = torch.stack(Focal_Lobj).sum()
+        L_pred_sum = torch.stack(Focal_Lpred).sum()
         Loss = lambda_obj * L_obj_sum + L_pred_sum + mat_diff_loss
 
         # dump
