@@ -2,13 +2,14 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+DEVICE = "cuda"
+
 class CrossEntropyFocalLoss(nn.Module):
-    def __init__(self, word_dict=None, beta=0.5, gamma=2, alpha=None, reduction='mean'):
+    def __init__(self, alpha=None, gamma=0.2, reduction='mean'):
         super(CrossEntropyFocalLoss, self).__init__()
         self.reduction = reduction
         self.alpha = alpha
         self.gamma = gamma
-        self.word_dict = word_dict
 
     def forward(self, logits, target):
         # logits: [N, C, H, W], target: [N, H, W]
@@ -37,26 +38,23 @@ class CrossEntropyFocalLoss(nn.Module):
             loss = loss.sum()
         return loss
 
-
 class PerClassBCEFocalLosswithLogits(nn.Module):    # namely multi-label classification
-    def __init__(self, gamma=2, alpha=0.6, reduction='mean'):
+    def __init__(self, gamma=0.2, alpha=0.6, reduction='mean'):
         super(PerClassBCEFocalLosswithLogits, self).__init__()
         self.gamma = gamma
         self.alpha = alpha
         self.reduction = reduction
 
-    # ignore the 'None' tag, sum from index one
     def forward(self, logits, target):
         # logits: [N, F], target: [1, N]
-        logits = torch.sigmoid(logits).clamp(1e-6, 1-1e-6)
+        # logits = torch.clamp(logits, -5, 5)  # avoid overflow after sigmoid computation in the val phase, remains for observation
         alpha = self.alpha
         gamma = self.gamma
+        if not self.training:
+            logits = torch.clamp(logits, -5, 5)  # avoid overflow after sigmoid computation in the val phase, remains for observation
+        ce_loss = torch.nn.functional.cross_entropy(logits, target.reshape(-1).to(torch.int64).to(DEVICE),
+                                                reduction='none')  # important to add reduction='none' to keep per-batch-item loss
 
-        loss = -alpha * (1 - logits) ** gamma * target * torch.log(logits) - \
-               (1 - alpha) * logits ** gamma * (1 - target) * torch.log(1 - logits)
-
-        if self.reduction == 'mean':
-            loss = loss.mean()
-        elif self.reduction == 'sum':
-            loss = loss.sum()
+        pt = torch.exp(-ce_loss)
+        loss = (alpha * (1-pt)** gamma * ce_loss).mean()
         return loss
