@@ -61,7 +61,7 @@ def get_graph_feature_edge(x, k=20, idx=None, dim9=False):
     feature = feature.view(batch_size, num_points, k, num_dims)
     x = x.view(batch_size, num_points, 1, num_dims).repeat(1, 1, k, 1)
     feature = (feature - x).permute(0, 3, 1, 2).contiguous()
-    base = torch.repeat_interleave(torch.arange(0, 21, device=DEVICE), repeats=k)
+    base = torch.repeat_interleave(torch.arange(0, 61, device=DEVICE), repeats=k)
     base = torch.repeat_interleave(base.unsqueeze(dim=1), repeats=batch_size, dim=1).T
     idx = torch.stack((base, idx.permute(0, 2, 1).reshape(batch_size, -1)), dim=2)
     return feature, idx  # (batch_size, num_dims, num_points, k)
@@ -131,23 +131,33 @@ class SGPN(nn.Module):
         rel_classifier_layer = [gnn_dim, 256, pred_cat_num]
         self.rel_classifier = build_mlp(rel_classifier_layer, batch_norm=mlp_normalization)
 
+        self.pad_human_centroid = torch.nn.ConstantPad1d((0, 3), 0)
+
     def forward(self, data_dict):
         # objects_id = data_dict["objects_id"]
         objects_pc = data_dict["objects_pc"]
-        objects_count = data_dict["objects_cat"].flatten().unique().shape[0] 
-        predicate_pc_flag = data_dict["poses"] # 1, 3, 25, 25
-        predicate_count = data_dict["triples"][:,:,-1].flatten().unique().shape[0] 
-        edges = data_dict["edges"]
-        trans_feat = []
         batch_size = objects_pc.size(0) // 60
-
+        
+        # objects_count = []
+        # predicate_count = []
+        # for i in range(batch_size):
+        #     objects_count.append(data_dict["objects_cat"][i].unique().shape[0])
+        #     predicate_count.append(data_dict["triples"][i][:,-1].unique().shape[0])
+        
+        predicate_pc_flag = data_dict["poses"] # 1, 3, 25, 25
+        trans_feat = []
+        
         # point cloud pass feature extractor
         objects_pc = objects_pc.permute(0, 2, 1)
         predicate_pc_flag = predicate_pc_flag.flatten(2)
         # predicate_pc_flag = predicate_pc_flag.permute(0, 2, 1)
         if self.feature_extractor == 'pointnet':
-            obj_vecs, _, tf1 = self.objExtractor(objects_pc) # 60, 1024 | 60, 64, 64
+            obj_vecs, _, tf1 = self.objExtractor(objects_pc) # 120, 1024 | 120, 64, 64
             pred_vecs, _, tf2 = self.relExtractor(predicate_pc_flag) # 2, 1024 (only works with batch size > 1)
+            obj_vecs = torch.repeat_interleave(obj_vecs[:60, :].unsqueeze(0), batch_size, dim=0).transpose(2, 1) # 2, 1024, 60
+            combined_feats = torch.concat((obj_vecs, pred_vecs.unsqueeze(2)), dim=2)
+            edge_feats, edge_indices = get_graph_feature_edge(combined_feats, k=60) # k = all clusters i.e. edges between everything
+            edge_feats = edge_feats.flatten(2)
             trans_feat.append(tf1)
             trans_feat.append(tf2)
         else:
@@ -158,26 +168,32 @@ class SGPN(nn.Module):
         # obj_vecs and rel_vecs pass GNN module
         obj_vecs_list = []
         pred_vecs_list = []
-        object_num = int(objects_count.item())
-        predicate_num = int(predicate_count.item())
         for i in range(batch_size):
             if self.graph_gen == 'gcn':
                 # GCN Module
-                if isinstance(self.gconv, nn.Linear):
-                    o_vecs = self.gconv(obj_vecs[object_num*i: object_num*(i+1)])
-                else:
-                    o_vecs, p_vecs = self.gconv(obj_vecs[object_num*i: object_num*(i+1)], pred_vecs[predicate_num*i: predicate_num*(i+1)], edges[i])
+                o_vecs, p_vecs = self.gconv(combined_feats[i].T, edge_feats[i].T, edge_indices[i])
                 if self.gconv_net is not None:
-                    o_vecs, p_vecs = self.gconv_net(o_vecs, p_vecs, edges[i])
-            else:
-                # GAT Module
-                o_vecs = self.gat_trans_obj(obj_vecs[object_num*i: object_num*(i+1)])
-                p_vecs = self.gat_trans_pred(pred_vecs[predicate_num*i: predicate_num*(i+1)])
-                if self.gat is not None:
-                    o_vecs, p_vecs = self.gat(o_vecs, p_vecs, edges[i])
-
+                    o_vecs, p_vecs = self.gconv_net(o_vecs, p_vecs, edge_indices[i])
             obj_vecs_list.append(o_vecs)
             pred_vecs_list.append(p_vecs)
+        # for i in range(batch_size):
+        #     if self.graph_gen == 'gcn':
+        #         # GCN Module
+        #         if isinstance(self.gconv, nn.Linear):
+        #             o_vecs = self.gconv(obj_vecs[object_num*i: object_num*(i+1)])
+        #         else:
+        #             o_vecs, p_vecs = self.gconv(obj_vecs[object_num*i: object_num*(i+1)], pred_vecs[predicate_num*i: predicate_num*(i+1)], edge_idx[i])
+        #         if self.gconv_net is not None:
+        #             o_vecs, p_vecs = self.gconv_net(o_vecs, p_vecs, edge_idx[i])
+        #     else:
+        #         # GAT Module
+        #         o_vecs = self.gat_trans_obj(obj_vecs[object_num*i: object_num*(i+1)])
+        #         p_vecs = self.gat_trans_pred(pred_vecs[predicate_num*i: predicate_num*(i+1)])
+        #         if self.gat is not None:
+        #             o_vecs, p_vecs = self.gat(o_vecs, p_vecs, edge_idx[i])
+
+        #     obj_vecs_list.append(o_vecs)
+        #     pred_vecs_list.append(p_vecs)
 
         obj_pred_list = []
         rel_pred_list = []
