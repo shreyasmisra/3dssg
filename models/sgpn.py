@@ -24,7 +24,7 @@ def get_num_params(model):
 
 def load_pretained_cls_model(model):
     # load pretrained pointnet_cls model [ relPointNet ver. ]
-    pretrained_dict = torch.load(CONF.PATH.PRETRAINED)["model_state_dict"]
+    pretrained_dict = torch.load(CONF.PATH.PRETRAINED, map_location='cpu')["model_state_dict"]
     net_state_dict = model.state_dict()
     pretrained_dict_ = {k[5:]: v for k, v in pretrained_dict.items() if 'feat' in k and v.size() == net_state_dict[k[5:]].size()}
     net_state_dict.update(pretrained_dict_)
@@ -70,7 +70,7 @@ def get_graph_feature_edge(x, k=20, idx=None, dim9=False):
 class SGPN(nn.Module):
     def __init__(self, use_pretrained_cls, feature_extractor='pointnet', graph_gen='gcn', gnn_dim=256, gnn_hidden_dim=512,
                  gnn_pooling='avg', gnn_num_layers=5, mlp_normalization='none',
-                 obj_cat_num=160, pred_cat_num=27):
+                 obj_cat_num=40, pred_cat_num=14):
         super().__init__()
 
         # ObjPointNet and RelPointNet
@@ -128,6 +128,18 @@ class SGPN(nn.Module):
         obj_classifier_layer = [gnn_dim, 256, obj_cat_num]
         self.obj_classifier = build_mlp(obj_classifier_layer, batch_norm=mlp_normalization)
 
+        self.bn1 = nn.BatchNorm1d(1024)
+        self.rel_fusion_layer1 = nn.Sequential(nn.Conv1d(3660, 1024, kernel_size=1, bias=False),
+                                                        self.bn1,
+                                                        nn.LeakyReLU(negative_slope=0.2))
+        self.bn2 = nn.BatchNorm1d(512)
+        self.rel_fusion_layer2 = nn.Sequential(nn.Conv1d(1024, 512, kernel_size=1, bias=False),
+                                                        self.bn2,
+                                                        nn.LeakyReLU(negative_slope=0.2))
+        self.bn3 = nn.BatchNorm1d(60)
+        self.rel_fusion_layer3 = nn.Sequential(nn.Conv1d(512, 60, kernel_size=1, bias=False),
+                                                        self.bn3,
+                                                        nn.LeakyReLU(negative_slope=0.2))
         rel_classifier_layer = [gnn_dim, 256, pred_cat_num]
         self.rel_classifier = build_mlp(rel_classifier_layer, batch_norm=mlp_normalization)
 
@@ -200,8 +212,12 @@ class SGPN(nn.Module):
         for o_vec in obj_vecs_list:
             obj_pred = self.obj_classifier(o_vec)
             obj_pred_list.append(obj_pred)
+        
         for p_vec in pred_vecs_list:
-            rel_pred = self.rel_classifier(p_vec)
+            rel_pred = self.rel_fusion_layer1(p_vec.reshape(1, -1, 128))
+            rel_pred = self.rel_fusion_layer2(rel_pred)
+            rel_pred = self.rel_fusion_layer3(rel_pred)
+            rel_pred = self.rel_classifier(rel_pred.squeeze())
             rel_pred_list.append(rel_pred)
         # ATTENTION: as batch_size > 1, the value that corresponds to the "predict" key is a list
         data_dict["objects_predict"] = obj_pred_list

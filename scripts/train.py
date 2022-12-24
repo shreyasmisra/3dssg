@@ -289,8 +289,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--gpu", type=str, help="gpu", default="0")
     parser.add_argument("--scene_num", type=int, help="number of scenes", default=-1)
-    parser.add_argument("--batch_size", type=int, help="batch size", default=2)
-    parser.add_argument("--epoch", type=int, help="number of epochs", default=25)
+    parser.add_argument("--batch_size", type=int, help="batch size", default=20)
+    parser.add_argument("--epoch", type=int, help="number of epochs", default=50)
     parser.add_argument("--verbose", type=int, help="iterations of showing verbose", default=100)    # train iter
     parser.add_argument("--val_step", type=int, help="iterations of validating", default=1000)   # val iter
     parser.add_argument("--use_pretrained", type=str, help="Specify the folder name containing the pretrained module.")
